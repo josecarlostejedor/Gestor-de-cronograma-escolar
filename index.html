@@ -1,0 +1,294 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IES Lucía de Medrano - Cronograma</title>
+    
+    <!-- Librerías base (UMD para máxima compatibilidad) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Exportación Word (Cargado como Global) -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; margin: 0; padding: 0; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        #error-display { display: none; padding: 20px; background: #fee2e2; color: #991b1b; border: 2px solid #ef4444; margin: 20px; border-radius: 12px; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "docx": "https://esm.sh/docx@^9.5.1",
+    "file-saver": "https://esm.sh/file-saver@^2.0.5",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="error-display">
+        <h2 style="font-weight: 800; margin-bottom: 8px;">⚠️ Error de Carga</h2>
+        <p id="error-message">La aplicación no pudo iniciarse correctamente.</p>
+    </div>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- ICONOS SVG ---
+        const IconPlus = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+        const IconFile = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>;
+        const IconTrash = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+        const IconLock = () => <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>;
+
+        const { useState, useEffect } = React;
+
+        const TIME_SLOTS = [
+            { id: '1h', label: '1ª hora', timeRange: '8:50 - 9:45' },
+            { id: '2h', label: '2ª hora', timeRange: '9:45 - 10:40' },
+            { id: '3h', label: '3ª hora', timeRange: '10:40 - 11:30' },
+            { id: 'recreo', label: 'Recreo', timeRange: '11:30 - 11:55' },
+            { id: '4h', label: '4ª hora', timeRange: '11:55 - 12:50' },
+            { id: '5h', label: '5ª hora', timeRange: '12:50 - 13:45' },
+            { id: '6h', label: '6ª hora', timeRange: '13:45 - 14:35' },
+        ];
+
+        const DAYS = [
+            { date: '23/03', dayName: 'Lunes' },
+            { date: '24/03', dayName: 'Martes' },
+            { date: '25/03', dayName: 'Miércoles' },
+            { date: '26/03', dayName: 'Jueves' },
+            { date: '27/03', dayName: 'Viernes' },
+        ];
+
+        const ActivityModal = ({ isOpen, onClose, onSave, dayName, slotLabel }) => {
+            const [data, setData] = useState({ actividad: '', departamento: '', profesor: '', grupo: '', lugar: '' });
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+                        <div className="bg-indigo-700 p-6 text-white">
+                            <h2 className="text-xl font-black">Nueva Actividad</h2>
+                            <p className="text-sm opacity-70">{dayName} • {slotLabel}</p>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <input autoFocus className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none" placeholder="Actividad" value={data.actividad} onChange={e => setData({...data, actividad: e.target.value})} />
+                            <input className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none" placeholder="Profesor Responsable" value={data.profesor} onChange={e => setData({...data, profesor: e.target.value})} />
+                            <input className="w-full p-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none" placeholder="Departamento" value={data.departamento} onChange={e => setData({...data, departamento: e.target.value})} />
+                            <div className="grid grid-cols-2 gap-3">
+                                <input className="p-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none" placeholder="Grupo" value={data.grupo} onChange={e => setData({...data, grupo: e.target.value})} />
+                                <input className="p-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none" placeholder="Lugar" value={data.lugar} onChange={e => setData({...data, lugar: e.target.value})} />
+                            </div>
+                            <div className="flex gap-2 pt-4">
+                                <button onClick={onClose} className="flex-1 py-3 font-bold text-slate-500 bg-slate-100 rounded-xl">Cancelar</button>
+                                <button onClick={() => { onSave(data); onClose(); setData({actividad:'', departamento:'', profesor:'', grupo:'', lugar:''}); }} className="flex-1 py-3 font-bold text-white bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700">Guardar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [schedule, setSchedule] = useState(() => {
+                const saved = localStorage.getItem('lucia-medrano-storage-v5');
+                return saved ? JSON.parse(saved) : {};
+            });
+            const [modal, setModal] = useState({ open: false, day: '', slot: '' });
+            const [auth, setAuth] = useState({ active: false, type: '', pass: '' });
+
+            useEffect(() => { 
+                localStorage.setItem('lucia-medrano-storage-v5', JSON.stringify(schedule)); 
+            }, [schedule]);
+
+            const handleExport = async () => {
+                try {
+                    // Acceso ultra-seguro a la librería
+                    const docxLib = window.docx || window.Docx;
+                    if (!docxLib) {
+                        throw new Error("La librería de Word no se ha cargado. Verifica tu conexión a internet.");
+                    }
+
+                    const { Document, Packer, Paragraph, Table, TableCell, TableRow, WidthType, AlignmentType, PageOrientation, TextRun, HeadingLevel } = docxLib;
+                    
+                    const tableRows = [
+                        new TableRow({
+                            children: [
+                                new TableCell({ 
+                                    children: [new Paragraph({ text: "HORARIO", alignment: AlignmentType.CENTER })], 
+                                    shading: { fill: "334155" },
+                                    width: { size: 10, type: WidthType.PERCENTAGE }
+                                }),
+                                ...DAYS.map(d => new TableCell({ 
+                                    children: [new Paragraph({ children: [new TextRun({ text: d.dayName, bold: true, color: "FFFFFF" })], alignment: AlignmentType.CENTER })], 
+                                    shading: { fill: "334155" },
+                                    width: { size: 18, type: WidthType.PERCENTAGE }
+                                }))
+                            ]
+                        })
+                    ];
+
+                    TIME_SLOTS.forEach(slot => {
+                        const cells = [
+                            new TableCell({ 
+                                children: [
+                                    new Paragraph({ text: slot.label, alignment: AlignmentType.CENTER, spacing: { before: 100 } }), 
+                                    new Paragraph({ text: slot.timeRange, alignment: AlignmentType.CENTER, spacing: { after: 100 } })
+                                ], 
+                                shading: { fill: "F1F5F9" } 
+                            })
+                        ];
+                        DAYS.forEach(day => {
+                            const acts = schedule[day.dayName]?.[slot.id] || [];
+                            const paras = acts.flatMap(a => [
+                                new Paragraph({ children: [new TextRun({ text: `Act: ${a.actividad}`, bold: true, size: 20 })] }),
+                                new Paragraph({ children: [new TextRun({ text: `Prof: ${a.profesor}`, size: 16, italic: true })] }),
+                                new Paragraph({ children: [new TextRun({ text: `${a.departamento} | ${a.grupo} | ${a.lugar}`, size: 14 })], spacing: { after: 200 } })
+                            ]);
+                            cells.push(new TableCell({ 
+                                children: paras.length > 0 ? paras : [new Paragraph("")],
+                                margins: { top: 100, bottom: 100, left: 100, right: 100 }
+                            }));
+                        });
+                        tableRows.push(new TableRow({ children: cells }));
+                    });
+
+                    const doc = new Document({
+                        sections: [{
+                            properties: { page: { size: { orientation: PageOrientation.LANDSCAPE } } },
+                            children: [
+                                new Paragraph({ 
+                                    text: "CRONOGRAMA SEMANA CULTURAL IES LUCÍA DE MEDRANO", 
+                                    heading: HeadingLevel.HEADING_1, 
+                                    alignment: AlignmentType.CENTER, 
+                                    spacing: { after: 400 } 
+                                }),
+                                new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows })
+                            ]
+                        }]
+                    });
+
+                    const blob = await Packer.toBlob(doc);
+                    window.saveAs(blob, "Cronograma_Lucia_Medrano.docx");
+                } catch (err) {
+                    alert("Error al generar el documento: " + err.message);
+                }
+            };
+
+            const confirmAuth = () => {
+                if (auth.pass === '1234') {
+                    if (auth.type === 'export') handleExport();
+                    else if (auth.type === 'clear') { setSchedule({}); localStorage.clear(); }
+                    setAuth({ active: false, type: '', pass: '' });
+                } else {
+                    alert("Clave incorrecta (1234)");
+                }
+            };
+
+            return (
+                <div className="min-h-screen pb-10">
+                    <header className="bg-white border-b p-6 flex items-center justify-between sticky top-0 z-40 shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="bg-indigo-700 text-white p-3 rounded-2xl"><IconFile /></div>
+                            <div>
+                                <h1 className="text-xl font-black text-slate-800">IES Lucía de Medrano</h1>
+                                <p className="text-xs font-bold text-indigo-500 uppercase tracking-widest">Calendario Semana Cultural</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={() => setAuth({active: true, type: 'clear', pass: ''})} className="flex items-center gap-2 text-red-600 bg-red-50 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition-colors"><IconTrash /> Borrar</button>
+                            <button onClick={() => setAuth({active: true, type: 'export', pass: ''})} className="flex items-center gap-2 bg-indigo-700 text-white px-5 py-2 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-800 transition-all"><IconFile /> Exportar Word</button>
+                        </div>
+                    </header>
+
+                    <main className="p-4 md:p-8 max-w-[1600px] mx-auto">
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-x-auto custom-scrollbar">
+                            <table className="w-full border-collapse min-w-[1100px]">
+                                <thead>
+                                    <tr className="bg-slate-800 text-white">
+                                        <th className="p-4 w-32 sticky left-0 z-20 bg-slate-800 text-[10px] font-bold uppercase opacity-60">Franja</th>
+                                        {DAYS.map(d => <th key={d.dayName} className="p-6 text-left border-l border-slate-700"><div className="text-lg font-black">{d.dayName}</div><div className="text-[10px] opacity-60 tracking-widest">{d.date}</div></th>)}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {TIME_SLOTS.map(slot => (
+                                        <tr key={slot.id} className={slot.id === 'recreo' ? 'bg-indigo-50/40' : 'hover:bg-slate-50/50'}>
+                                            <td className="p-4 border-b border-r sticky left-0 bg-white z-20 text-center shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                                                <div className="font-black text-slate-800 text-sm">{slot.label}</div>
+                                                <div className="text-[9px] font-bold text-indigo-500">{slot.timeRange}</div>
+                                            </td>
+                                            {DAYS.map(day => {
+                                                const acts = schedule[day.dayName]?.[slot.id] || [];
+                                                return (
+                                                    <td key={day.dayName+slot.id} className="p-3 border-b border-slate-100 align-top group min-h-[120px]">
+                                                        <div className="space-y-3 mb-4">
+                                                            {acts.map((a, i) => (
+                                                                <div key={i} className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm border-l-4 border-l-indigo-600 hover:shadow-md transition-shadow">
+                                                                    <div className="font-bold text-slate-900 leading-tight mb-2 text-sm">{a.actividad}</div>
+                                                                    <div className="text-[10px] text-indigo-700 font-bold mb-1">Prof: {a.profesor}</div>
+                                                                    <div className="text-[10px] text-slate-500 font-medium">{a.departamento} | {a.grupo} | {a.lugar}</div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <button onClick={() => setModal({open: true, day: day.dayName, slot: slot.id})} className="w-full py-3 flex items-center justify-center gap-2 border-2 border-dashed border-slate-100 text-slate-300 rounded-xl hover:border-indigo-200 hover:text-indigo-500 transition-all">
+                                                            <IconPlus /> <span className="text-[10px] font-black uppercase tracking-widest">Añadir</span>
+                                                        </button>
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </main>
+
+                    <ActivityModal isOpen={modal.open} onClose={() => setModal({open: false})} onSave={(data) => {
+                        setSchedule(prev => {
+                            const d = prev[modal.day] || {};
+                            const s = d[modal.slot] || [];
+                            return { ...prev, [modal.day]: { ...d, [modal.slot]: [...s, data] } };
+                        });
+                    }} dayName={modal.day} slotLabel={TIME_SLOTS.find(s=>s.id===modal.slot)?.label} />
+
+                    {auth.active && (
+                        <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+                            <div className="bg-white p-8 rounded-[40px] max-w-sm w-full text-center shadow-2xl">
+                                <div className="inline-block p-4 bg-indigo-50 text-indigo-600 rounded-3xl mb-4"><IconLock /></div>
+                                <h3 className="text-2xl font-black mb-1">Clave Requerida</h3>
+                                <p className="text-xs text-slate-400 mb-8 uppercase tracking-widest font-bold">Introduce 1234</p>
+                                <input type="password" autoFocus className="w-full p-4 text-center text-4xl font-black border-2 border-slate-100 rounded-2xl outline-none focus:border-indigo-500 transition-all" placeholder="••••" value={auth.pass} onChange={e=>setAuth({...auth, pass: e.target.value})} onKeyDown={e=>e.key==='Enter'&&confirmAuth()} />
+                                <div className="mt-8 flex flex-col gap-3">
+                                    <button onClick={confirmAuth} className="w-full py-4 bg-indigo-700 text-white font-black rounded-2xl shadow-xl shadow-indigo-200 hover:bg-indigo-800 active:scale-95 transition-all">Confirmar</button>
+                                    <button onClick={() => setAuth({active: false})} className="w-full py-2 text-slate-400 font-bold hover:text-slate-600">Cancelar</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        try {
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(<App />);
+        } catch (e) {
+            document.getElementById('error-display').style.display = 'block';
+            document.getElementById('error-message').innerText = "Fallo crítico en React: " + e.message;
+        }
+    </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
