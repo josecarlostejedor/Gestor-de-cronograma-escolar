@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IES Lucía de Medrano - Semana Cultural</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; margin: 0; }
+        .recreo-row { background-color: #f0f9ff !important; }
+        #root:empty::before {
+            content: 'Iniciando sistema de calendario...';
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #4338ca;
+            font-weight: 800;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+    </style>
+    <!-- Librerías de exportación -->
+    <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0?external=react,react-dom",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+    <script>
+        // Gestor de errores para diagnóstico inmediato en pantalla
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            const root = document.getElementById('root');
+            if (root && root.innerHTML === "") {
+                root.innerHTML = `<div style="padding: 40px; color: #e11d48; text-align: center; font-family: sans-serif; background: white; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                    <div style="background: #fff1f2; padding: 30px; border-radius: 24px; border: 1px solid #fda4af; max-width: 600px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+                        <h3 style="font-weight: 900; font-size: 1.5rem; margin-bottom: 1rem; color: #9f1239;">Error de Aplicación</h3>
+                        <p style="font-family: monospace; font-size: 0.8rem; margin-bottom: 20px; text-align: left; overflow-wrap: break-word;">${msg}</p>
+                        <button onclick="location.reload()" style="background: #4338ca; color: white; padding: 12px 30px; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 1rem; transition: all 0.2s;">Reiniciar Aplicación</button>
+                    </div>
+                </div>`;
+            }
+            return false;
+        };
+    </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
